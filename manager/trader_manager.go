@@ -23,7 +23,7 @@ func NewTraderManager() *TraderManager {
 }
 
 // AddTrader 添加一个trader
-func (tm *TraderManager) AddTrader(cfg config.TraderConfig, coinPoolURL string, maxDailyLoss, maxDrawdown float64, stopTradingMinutes int) error {
+func (tm *TraderManager) AddTrader(cfg config.TraderConfig, coinPoolURL string, maxDailyLoss, maxDrawdown float64, stopTradingMinutes int, leverage config.LeverageConfig) error {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
@@ -33,20 +33,31 @@ func (tm *TraderManager) AddTrader(cfg config.TraderConfig, coinPoolURL string, 
 
 	// 构建AutoTraderConfig
 	traderConfig := trader.AutoTraderConfig{
-		ID:               cfg.ID,
-		Name:             cfg.Name,
-		AIModel:          cfg.AIModel,
-		BinanceAPIKey:    cfg.BinanceAPIKey,
-		BinanceSecretKey: cfg.BinanceSecretKey,
-		CoinPoolAPIURL:   coinPoolURL,
-		UseQwen:          cfg.AIModel == "qwen",
-		DeepSeekKey:      cfg.DeepSeekKey,
-		QwenKey:          cfg.QwenKey,
-		ScanInterval:     cfg.GetScanInterval(),
-		InitialBalance:   cfg.InitialBalance,
-		MaxDailyLoss:     maxDailyLoss,
-		MaxDrawdown:      maxDrawdown,
-		StopTradingTime:  time.Duration(stopTradingMinutes) * time.Minute,
+		ID:                    cfg.ID,
+		Name:                  cfg.Name,
+		AIModel:               cfg.AIModel,
+		Exchange:              cfg.Exchange,
+		BinanceAPIKey:         cfg.BinanceAPIKey,
+		BinanceSecretKey:      cfg.BinanceSecretKey,
+		HyperliquidPrivateKey: cfg.HyperliquidPrivateKey,
+		HyperliquidTestnet:    cfg.HyperliquidTestnet,
+		AsterUser:             cfg.AsterUser,
+		AsterSigner:           cfg.AsterSigner,
+		AsterPrivateKey:       cfg.AsterPrivateKey,
+		CoinPoolAPIURL:        coinPoolURL,
+		UseQwen:               cfg.AIModel == "qwen",
+		DeepSeekKey:           cfg.DeepSeekKey,
+		QwenKey:               cfg.QwenKey,
+		CustomAPIURL:          cfg.CustomAPIURL,
+		CustomAPIKey:          cfg.CustomAPIKey,
+		CustomModelName:       cfg.CustomModelName,
+		ScanInterval:          cfg.GetScanInterval(),
+		InitialBalance:        cfg.InitialBalance,
+		BTCETHLeverage:        leverage.BTCETHLeverage,  // 使用配置的杠杆倍数
+		AltcoinLeverage:       leverage.AltcoinLeverage, // 使用配置的杠杆倍数
+		MaxDailyLoss:          maxDailyLoss,
+		MaxDrawdown:           maxDrawdown,
+		StopTradingTime:       time.Duration(stopTradingMinutes) * time.Minute,
 	}
 
 	// 创建trader实例

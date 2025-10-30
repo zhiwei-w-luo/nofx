@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 	"path/filepath"
 	"time"
@@ -326,7 +327,7 @@ func (l *DecisionLogger) AnalyzePerformance(lookbackCycles int) (*PerformanceAna
 		SymbolStats:  make(map[string]*SymbolPerformance),
 	}
 
-	// 追踪持仓状态：symbol -> {side, openPrice, openTime}
+	// 追踪持仓状态：symbol_side -> {side, openPrice, openTime, quantity, leverage}
 	openPositions := make(map[string]map[string]interface{})
 
 	// 遍历所有记录
@@ -337,15 +338,23 @@ func (l *DecisionLogger) AnalyzePerformance(lookbackCycles int) (*PerformanceAna
 			}
 
 			symbol := action.Symbol
-			posKey := symbol // 使用symbol作为key（假设同一时间一个币种只有一个方向的仓位）
+			side := ""
+			if action.Action == "open_long" || action.Action == "close_long" {
+				side = "long"
+			} else if action.Action == "open_short" || action.Action == "close_short" {
+				side = "short"
+			}
+			posKey := symbol + "_" + side // 使用symbol_side作为key，区分多空持仓
 
 			switch action.Action {
 			case "open_long", "open_short":
-				// 记录开仓
+				// 记录开仓（包括数量和杠杆）
 				openPositions[posKey] = map[string]interface{}{
-					"side":      action.Action[5:], // "long" or "short"
+					"side":      side,
 					"openPrice": action.Price,
 					"openTime":  action.Timestamp,
+					"quantity":  action.Quantity,
+					"leverage":  action.Leverage,
 				}
 
 			case "close_long", "close_short":
@@ -354,16 +363,21 @@ func (l *DecisionLogger) AnalyzePerformance(lookbackCycles int) (*PerformanceAna
 					openPrice := openPos["openPrice"].(float64)
 					openTime := openPos["openTime"].(time.Time)
 					side := openPos["side"].(string)
+					quantity := openPos["quantity"].(float64)
+					leverage := openPos["leverage"].(int)
 
-					// 计算盈亏
-					pnl := 0.0
+					// 计算盈亏百分比
 					pnlPct := 0.0
 					if side == "long" {
 						pnlPct = ((action.Price - openPrice) / openPrice) * 100
 					} else {
 						pnlPct = ((openPrice - action.Price) / openPrice) * 100
 					}
-					pnl = pnlPct // 简化：用百分比代表盈亏
+
+					// 计算实际盈亏（USDT）
+					// PnL = 仓位价值 × 价格变化百分比 × 杠杆倍数
+					positionValue := quantity * openPrice
+					pnl := positionValue * (pnlPct / 100) * float64(leverage)
 
 					// 记录交易结果
 					outcome := TradeOutcome{
@@ -415,6 +429,10 @@ func (l *DecisionLogger) AnalyzePerformance(lookbackCycles int) (*PerformanceAna
 	if analysis.TotalTrades > 0 {
 		analysis.WinRate = (float64(analysis.WinningTrades) / float64(analysis.TotalTrades)) * 100
 
+		// 计算总盈利和总亏损
+		totalWinAmount := analysis.AvgWin   // 当前是累加的总和
+		totalLossAmount := analysis.AvgLoss // 当前是累加的总和（负数）
+
 		if analysis.WinningTrades > 0 {
 			analysis.AvgWin /= float64(analysis.WinningTrades)
 		}
@@ -422,8 +440,10 @@ func (l *DecisionLogger) AnalyzePerformance(lookbackCycles int) (*PerformanceAna
 			analysis.AvgLoss /= float64(analysis.LosingTrades)
 		}
 
-		if analysis.AvgLoss != 0 {
-			analysis.ProfitFactor = analysis.AvgWin / (-analysis.AvgLoss)
+		// Profit Factor = 总盈利 / 总亏损（绝对值）
+		// 注意：totalLossAmount 是负数，所以取负号得到绝对值
+		if totalLossAmount != 0 {
+			analysis.ProfitFactor = totalWinAmount / (-totalLossAmount)
 		}
 	}
 
@@ -474,9 +494,12 @@ func (l *DecisionLogger) calculateSharpeRatio(records []*DecisionRecord) float64
 	}
 
 	// 提取每个周期的账户净值
+	// 注意：TotalBalance字段实际存储的是TotalEquity（账户总净值）
+	// TotalUnrealizedProfit字段实际存储的是TotalPnL（相对初始余额的盈亏）
 	var equities []float64
 	for _, record := range records {
-		equity := record.AccountState.TotalBalance + record.AccountState.TotalUnrealizedProfit
+		// 直接使用TotalBalance，因为它已经是完整的账户净值
+		equity := record.AccountState.TotalBalance
 		if equity > 0 {
 			equities = append(equities, equity)
 		}
@@ -513,14 +536,7 @@ func (l *DecisionLogger) calculateSharpeRatio(records []*DecisionRecord) float64
 		sumSquaredDiff += diff * diff
 	}
 	variance := sumSquaredDiff / float64(len(returns))
-	stdDev := 0.0
-	if variance > 0 {
-		stdDev = 1.0
-		// 简单的平方根计算（牛顿迭代法）
-		for i := 0; i < 10; i++ {
-			stdDev = (stdDev + variance/stdDev) / 2
-		}
-	}
+	stdDev := math.Sqrt(variance)
 
 	// 避免除以零
 	if stdDev == 0 {

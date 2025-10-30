@@ -20,21 +20,43 @@ type AutoTraderConfig struct {
 	Name    string // Trader显示名称
 	AIModel string // AI模型: "qwen" 或 "deepseek"
 
-	// API配置
+	// 交易平台选择
+	Exchange string // "binance", "hyperliquid" 或 "aster"
+
+	// 币安API配置
 	BinanceAPIKey    string
 	BinanceSecretKey string
-	CoinPoolAPIURL   string
+
+	// Hyperliquid配置
+	HyperliquidPrivateKey string
+	HyperliquidTestnet    bool
+
+	// Aster配置
+	AsterUser       string // Aster主钱包地址
+	AsterSigner     string // Aster API钱包地址
+	AsterPrivateKey string // Aster API钱包私钥
+
+	CoinPoolAPIURL string
 
 	// AI配置
 	UseQwen     bool
 	DeepSeekKey string
 	QwenKey     string
 
+	// 自定义AI API配置
+	CustomAPIURL    string
+	CustomAPIKey    string
+	CustomModelName string
+
 	// 扫描配置
 	ScanInterval time.Duration // 扫描间隔（建议3分钟）
 
 	// 账户配置
 	InitialBalance float64 // 初始金额（用于计算盈亏，需手动设置）
+
+	// 杠杆配置
+	BTCETHLeverage  int // BTC和ETH的杠杆倍数
+	AltcoinLeverage int // 山寨币的杠杆倍数
 
 	// 风险控制（仅作为提示，AI可自主决定）
 	MaxDailyLoss    float64       // 最大日亏损百分比（提示）
@@ -44,19 +66,21 @@ type AutoTraderConfig struct {
 
 // AutoTrader 自动交易器
 type AutoTrader struct {
-	id             string // Trader唯一标识
-	name           string // Trader显示名称
-	aiModel        string // AI模型名称
-	config         AutoTraderConfig
-	trader         *FuturesTrader
-	decisionLogger *logger.DecisionLogger // 决策日志记录器
-	initialBalance float64
-	dailyPnL       float64
-	lastResetTime  time.Time
-	stopUntil      time.Time
-	isRunning      bool
-	startTime      time.Time // 系统启动时间
-	callCount      int       // AI调用次数
+	id                   string                 // Trader唯一标识
+	name                 string                 // Trader显示名称
+	aiModel              string                 // AI模型名称
+	exchange             string                 // 交易平台名称
+	config               AutoTraderConfig
+	trader               Trader                 // 使用Trader接口（支持多平台）
+	decisionLogger       *logger.DecisionLogger // 决策日志记录器
+	initialBalance       float64
+	dailyPnL             float64
+	lastResetTime        time.Time
+	stopUntil            time.Time
+	isRunning            bool
+	startTime            time.Time                 // 系统启动时间
+	callCount            int                       // AI调用次数
+	positionFirstSeenTime map[string]int64         // 持仓首次出现时间 (symbol_side -> timestamp毫秒)
 }
 
 // NewAutoTrader 创建自动交易器
@@ -77,10 +101,16 @@ func NewAutoTrader(config AutoTraderConfig) (*AutoTrader, error) {
 	}
 
 	// 初始化AI
-	if config.UseQwen {
+	if config.AIModel == "custom" {
+		// 使用自定义API
+		mcp.SetCustomAPI(config.CustomAPIURL, config.CustomAPIKey, config.CustomModelName)
+		log.Printf("🤖 [%s] 使用自定义AI API: %s (模型: %s)", config.Name, config.CustomAPIURL, config.CustomModelName)
+	} else if config.UseQwen || config.AIModel == "qwen" {
+		// 使用Qwen
 		mcp.SetQwenAPIKey(config.QwenKey, "")
 		log.Printf("🤖 [%s] 使用阿里云Qwen AI", config.Name)
 	} else {
+		// 默认使用DeepSeek
 		mcp.SetDeepSeekAPIKey(config.DeepSeekKey)
 		log.Printf("🤖 [%s] 使用DeepSeek AI", config.Name)
 	}
@@ -90,8 +120,34 @@ func NewAutoTrader(config AutoTraderConfig) (*AutoTrader, error) {
 		pool.SetCoinPoolAPI(config.CoinPoolAPIURL)
 	}
 
-	// 初始化币安合约交易器
-	trader := NewFuturesTrader(config.BinanceAPIKey, config.BinanceSecretKey)
+	// 设置默认交易平台
+	if config.Exchange == "" {
+		config.Exchange = "binance"
+	}
+
+	// 根据配置创建对应的交易器
+	var trader Trader
+	var err error
+
+	switch config.Exchange {
+	case "binance":
+		log.Printf("🏦 [%s] 使用币安合约交易", config.Name)
+		trader = NewFuturesTrader(config.BinanceAPIKey, config.BinanceSecretKey)
+	case "hyperliquid":
+		log.Printf("🏦 [%s] 使用Hyperliquid交易", config.Name)
+		trader, err = NewHyperliquidTrader(config.HyperliquidPrivateKey, config.HyperliquidTestnet)
+		if err != nil {
+			return nil, fmt.Errorf("初始化Hyperliquid交易器失败: %w", err)
+		}
+	case "aster":
+		log.Printf("🏦 [%s] 使用Aster交易", config.Name)
+		trader, err = NewAsterTrader(config.AsterUser, config.AsterSigner, config.AsterPrivateKey)
+		if err != nil {
+			return nil, fmt.Errorf("初始化Aster交易器失败: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("不支持的交易平台: %s", config.Exchange)
+	}
 
 	// 验证初始金额配置
 	if config.InitialBalance <= 0 {
@@ -103,17 +159,19 @@ func NewAutoTrader(config AutoTraderConfig) (*AutoTrader, error) {
 	decisionLogger := logger.NewDecisionLogger(logDir)
 
 	return &AutoTrader{
-		id:             config.ID,
-		name:           config.Name,
-		aiModel:        config.AIModel,
-		config:         config,
-		trader:         trader,
-		decisionLogger: decisionLogger,
-		initialBalance: config.InitialBalance,
-		lastResetTime:  time.Now(),
-		startTime:      time.Now(),
-		callCount:      0,
-		isRunning:      false,
+		id:                   config.ID,
+		name:                 config.Name,
+		aiModel:              config.AIModel,
+		exchange:             config.Exchange,
+		config:               config,
+		trader:               trader,
+		decisionLogger:       decisionLogger,
+		initialBalance:       config.InitialBalance,
+		lastResetTime:        time.Now(),
+		startTime:            time.Now(),
+		callCount:            0,
+		isRunning:            false,
+		positionFirstSeenTime: make(map[string]int64),
 	}, nil
 }
 
@@ -349,6 +407,9 @@ func (at *AutoTrader) buildTradingContext() (*decision.Context, error) {
 	var positionInfos []decision.PositionInfo
 	totalMarginUsed := 0.0
 
+	// 当前持仓的key集合（用于清理已平仓的记录）
+	currentPositionKeys := make(map[string]bool)
+
 	for _, pos := range positions {
 		symbol := pos["symbol"].(string)
 		side := pos["side"].(string)
@@ -377,6 +438,15 @@ func (at *AutoTrader) buildTradingContext() (*decision.Context, error) {
 		marginUsed := (quantity * markPrice) / float64(leverage)
 		totalMarginUsed += marginUsed
 
+		// 跟踪持仓首次出现时间
+		posKey := symbol + "_" + side
+		currentPositionKeys[posKey] = true
+		if _, exists := at.positionFirstSeenTime[posKey]; !exists {
+			// 新持仓，记录当前时间
+			at.positionFirstSeenTime[posKey] = time.Now().UnixMilli()
+		}
+		updateTime := at.positionFirstSeenTime[posKey]
+
 		positionInfos = append(positionInfos, decision.PositionInfo{
 			Symbol:           symbol,
 			Side:             side,
@@ -388,7 +458,15 @@ func (at *AutoTrader) buildTradingContext() (*decision.Context, error) {
 			UnrealizedPnLPct: pnlPct,
 			LiquidationPrice: liquidationPrice,
 			MarginUsed:       marginUsed,
+			UpdateTime:       updateTime,
 		})
+	}
+
+	// 清理已平仓的持仓记录
+	for key := range at.positionFirstSeenTime {
+		if !currentPositionKeys[key] {
+			delete(at.positionFirstSeenTime, key)
+		}
 	}
 
 	// 3. 获取合并的候选币种池（AI500 + OI Top，去重）
@@ -437,9 +515,11 @@ func (at *AutoTrader) buildTradingContext() (*decision.Context, error) {
 
 	// 6. 构建上下文
 	ctx := &decision.Context{
-		CurrentTime:    time.Now().Format("2006-01-02 15:04:05"),
-		RuntimeMinutes: int(time.Since(at.startTime).Minutes()),
-		CallCount:      at.callCount,
+		CurrentTime:      time.Now().Format("2006-01-02 15:04:05"),
+		RuntimeMinutes:   int(time.Since(at.startTime).Minutes()),
+		CallCount:        at.callCount,
+		BTCETHLeverage:   at.config.BTCETHLeverage,   // 使用配置的杠杆倍数
+		AltcoinLeverage:  at.config.AltcoinLeverage,  // 使用配置的杠杆倍数
 		Account: decision.AccountInfo{
 			TotalEquity:      totalEquity,
 			AvailableBalance: availableBalance,
@@ -514,6 +594,10 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *decision.Decision, act
 
 	log.Printf("  ✓ 开仓成功，订单ID: %v, 数量: %.4f", order["orderId"], quantity)
 
+	// 记录开仓时间
+	posKey := decision.Symbol + "_long"
+	at.positionFirstSeenTime[posKey] = time.Now().UnixMilli()
+
 	// 设置止损止盈
 	if err := at.trader.SetStopLoss(decision.Symbol, "LONG", quantity, decision.StopLoss); err != nil {
 		log.Printf("  ⚠ 设置止损失败: %v", err)
@@ -562,6 +646,10 @@ func (at *AutoTrader) executeOpenShortWithRecord(decision *decision.Decision, ac
 	}
 
 	log.Printf("  ✓ 开仓成功，订单ID: %v, 数量: %.4f", order["orderId"], quantity)
+
+	// 记录开仓时间
+	posKey := decision.Symbol + "_short"
+	at.positionFirstSeenTime[posKey] = time.Now().UnixMilli()
 
 	// 设置止损止盈
 	if err := at.trader.SetStopLoss(decision.Symbol, "SHORT", quantity, decision.StopLoss); err != nil {
@@ -657,6 +745,7 @@ func (at *AutoTrader) GetStatus() map[string]interface{} {
 		"trader_id":       at.id,
 		"trader_name":     at.name,
 		"ai_model":        at.aiModel,
+		"exchange":        at.exchange,
 		"is_running":      at.isRunning,
 		"start_time":      at.startTime.Format(time.RFC3339),
 		"runtime_minutes": int(time.Since(at.startTime).Minutes()),

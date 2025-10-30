@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
   LineChart,
   Line,
@@ -19,14 +19,32 @@ interface ComparisonChartProps {
 }
 
 export function ComparisonChart({ traders }: ComparisonChartProps) {
-  // 获取所有trader的历史数据
-  const traderHistories = traders.map((trader) => {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useSWR(`equity-history-${trader.trader_id}`, () =>
-      api.getEquityHistory(trader.trader_id),
-      { refreshInterval: 10000 }
-    );
-  });
+  // 获取所有trader的历史数据 - 使用单个useSWR并发请求所有trader数据
+  // 生成唯一的key，当traders变化时会触发重新请求
+  const tradersKey = traders.map(t => t.trader_id).sort().join(',');
+
+  const { data: allTraderHistories, isLoading } = useSWR(
+    traders.length > 0 ? `all-equity-histories-${tradersKey}` : null,
+    async () => {
+      // 并发请求所有trader的历史数据
+      const promises = traders.map(trader =>
+        api.getEquityHistory(trader.trader_id)
+      );
+      return Promise.all(promises);
+    },
+    {
+      refreshInterval: 10000,
+      revalidateOnFocus: false,
+    }
+  );
+
+  // 将数据转换为与原格式兼容的结构
+  const traderHistories = useMemo(() => {
+    if (!allTraderHistories) {
+      return traders.map(() => ({ data: undefined }));
+    }
+    return allTraderHistories.map(data => ({ data }));
+  }, [allTraderHistories, traders.length]);
 
   // 使用useMemo自动处理数据合并，直接使用data对象作为依赖
   const combinedData = useMemo(() => {
@@ -105,12 +123,7 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
     }
 
     return combined;
-  }, [
-    traderHistories[0]?.data,
-    traderHistories[1]?.data,
-  ]);
-
-  const isLoading = traderHistories.some((h) => !h.data);
+  }, [allTraderHistories, traders]);
 
   if (isLoading) {
     return (
@@ -275,7 +288,7 @@ export function ComparisonChart({ traders }: ComparisonChartProps) {
             }}
           />
 
-          {traders.map((trader, index) => (
+          {traders.map((trader) => (
             <Line
               key={trader.trader_id}
               type="monotone"

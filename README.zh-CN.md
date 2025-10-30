@@ -9,9 +9,84 @@
 
 ---
 
-一个基于 **DeepSeek/Qwen AI** 的币安合约自动交易系统，支持**多AI模型实盘竞赛**，具备完整的市场分析、AI决策、**自我学习机制**和专业的Web监控界面。
+一个基于 **DeepSeek/Qwen AI** 的加密货币期货自动交易系统，支持 **Binance、Hyperliquid和Aster DEX交易所**，**多AI模型实盘竞赛**，具备完整的市场分析、AI决策、**自我学习机制**和专业的Web监控界面。
 
 > ⚠️ **风险提示**：本系统为实验性项目，AI自动交易存在重大风险，强烈建议仅用于学习研究或小额资金测试！
+
+## 👥 开发者社区
+
+加入我们的Telegram开发者社区，讨论、分享想法并获得支持：
+
+**💬 [NOFX开发者社区](https://t.me/nofx_dev_community)**
+
+---
+
+## 🆕 最新更新
+
+### 🚀 多交易所支持！
+
+NOFX现已支持**三大交易所**：Binance、Hyperliquid和Aster DEX！
+
+#### **Hyperliquid交易所**
+
+高性能的去中心化永续期货交易所！
+
+**核心特性：**
+- ✅ 完整交易支持（做多/做空、杠杆、止损/止盈）
+- ✅ 自动精度处理（订单数量和价格）
+- ✅ 统一trader接口（无缝切换交易所）
+- ✅ 支持主网和测试网
+- ✅ 无需API密钥 - 只需以太坊私钥
+
+**为什么选择Hyperliquid？**
+- 🔥 比中心化交易所手续费更低
+- 🔒 非托管 - 你掌控自己的资金
+- ⚡ 快速执行与链上结算
+- 🌍 无需KYC
+
+**快速开始：**
+1. 获取你的MetaMask私钥（去掉`0x`前缀）
+2. 在config.json中设置`"exchange": "hyperliquid"`
+3. 添加`"hyperliquid_private_key": "your_key"`
+4. 开始交易！
+
+详见[配置指南](#-备选使用hyperliquid交易所)。
+
+#### **Aster DEX交易所**（新！v2.0.2）
+
+兼容Binance的去中心化永续期货交易所！
+
+**核心特性：**
+- ✅ Binance风格API（从Binance轻松迁移）
+- ✅ Web3钱包认证（安全且去中心化）
+- ✅ 完整交易支持，自动精度处理
+- ✅ 比中心化交易所手续费更低
+- ✅ 兼容EVM（以太坊、BSC、Polygon等）
+
+**为什么选择Aster？**
+- 🎯 **兼容Binance API** - 需要最少的代码修改
+- 🔐 **API钱包系统** - 独立交易钱包提升安全性
+- 💰 **有竞争力的手续费** - 比大多数中心化交易所更低
+- 🌐 **多链支持** - 在你喜欢的EVM链上交易
+
+**快速开始：**
+1. 访问[Aster API钱包](https://www.asterdex.com/en/api-wallet)
+2. 连接你的主钱包并创建API钱包
+3. 复制API Signer地址和私钥
+4. 在config.json中设置`"exchange": "aster"`
+5. 添加`"aster_user"`、`"aster_signer"`和`"aster_private_key"`
+
+---
+
+## 📸 系统截图
+
+### 🏆 竞赛模式 - AI实时对战
+![竞赛页面](screenshots/competition-page.png)
+*多AI排行榜和实时性能对比图表，展示Qwen vs DeepSeek实时交易对战*
+
+### 📊 交易详情 - 完整交易仪表盘
+![详情页面](screenshots/details-page.png)
+*专业交易界面，包含权益曲线、实时持仓、AI决策日志，支持展开查看输入提示词和AI思维链推理过程*
 
 ---
 
@@ -44,7 +119,11 @@
 - **单币种仓位上限**:
   - 山寨币 ≤ 1.5倍账户净值
   - BTC/ETH ≤ 10倍账户净值
-- **固定杠杆**: 山寨币20倍 | BTC/ETH 50倍
+- **可配置杠杆** (v2.0.3+):
+  - 在config.json中设置最大杠杆
+  - 默认：所有币种5倍（子账户安全）
+  - 主账户可增加：山寨币最高20倍，BTC/ETH最高50倍
+  - ⚠️ 币安子账户限制≤5倍杠杆
 - **保证金管理**: 总使用率≤90%，AI自主决策使用率
 - **风险回报比**: 强制≥1:2（止损:止盈）
 - **防止仓位叠加**: 同币种同方向不允许重复开仓
@@ -83,10 +162,14 @@ nofx/
 ├── manager/                        # 多trader管理
 │   └── trader_manager.go           # 管理多个trader实例
 │
-├── market/                         # 市场数据与AI决策
-│   ├── market_data.go              # 市场数据获取（K线、指标）
-│   ├── ai_decision_engine.go       # AI决策引擎（含历史反馈）
-│   └── ai_signal.go                # AI API调用（DeepSeek/Qwen）
+├── mcp/                            # Model Context Protocol - AI通信
+│   └── client.go                   # AI API客户端（DeepSeek/Qwen集成）
+│
+├── decision/                       # AI决策引擎
+│   └── engine.go                   # 决策逻辑（含历史反馈）
+│
+├── market/                         # 市场数据获取
+│   └── data.go                     # 市场数据与技术指标（K线、RSI、MACD）
 │
 ├── pool/                           # 币种池管理
 │   └── coin_pool.go                # AI500 + OI Top合并池
@@ -95,8 +178,8 @@ nofx/
 │   └── decision_logger.go          # 决策记录 + 表现分析
 │
 ├── decision_logs/                  # 决策日志存储
-│   ├── trader1/                    # Trader 1的日志
-│   └── trader2/                    # Trader 2的日志
+│   ├── qwen_trader/                # Qwen trader日志
+│   └── deepseek_trader/            # DeepSeek trader日志
 │
 └── web/                            # React前端
     ├── src/
@@ -126,7 +209,83 @@ nofx/
 
 ---
 
+## 💰 注册币安账户（省手续费！）
+
+使用本系统前，您需要一个币安合约账户。**使用我们的推荐链接注册可享受手续费优惠：**
+
+**🎁 [注册币安 - 享手续费折扣](https://www.binance.com/join?ref=TINKLEVIP)**
+
+### 注册步骤：
+
+1. **点击上方链接** 访问币安注册页面
+2. **完成注册** 使用邮箱/手机号注册
+3. **完成KYC身份认证**（合约交易必须）
+4. **开通合约账户**：
+   - 进入币安首页 → 衍生品 → U本位合约
+   - 点击"立即开通"激活合约交易
+5. **创建API密钥**：
+   - 进入账户 → API管理
+   - 创建新的API密钥，**务必勾选"合约"权限**
+   - 保存API Key和Secret Key（config.json中需要）
+   - **重要**：添加IP白名单以确保安全
+
+### 手续费优惠说明：
+
+- ✅ **现货交易**：最高享30%手续费返佣
+- ✅ **合约交易**：最高享30%手续费返佣
+- ✅ **终身有效**：永久享受交易手续费折扣
+
+---
+
 ## 🚀 快速开始
+
+### 🐳 方式A：Docker 一键部署（最简单 - 新手推荐！）
+
+**⚡ 使用Docker只需3步即可开始交易 - 无需安装任何环境！**
+
+Docker会自动处理所有依赖（Go、Node.js、TA-Lib）和环境配置，完美适合新手！
+
+#### 步骤1：准备配置文件
+```bash
+# 复制配置文件模板
+cp config.json.example config.json
+
+# 编辑并填入你的API密钥
+nano config.json  # 或使用其他编辑器
+```
+
+#### 步骤2：一键启动
+```bash
+# 方式1：使用便捷脚本（推荐）
+chmod +x start.sh
+./start.sh start --build
+
+# 方式2：直接使用docker-compose
+docker-compose up -d --build
+```
+
+#### 步骤3：访问控制台
+在浏览器中打开：**http://localhost:3000**
+
+**就是这么简单！🎉** 你的AI交易系统已经运行起来了！
+
+#### 管理你的系统
+```bash
+./start.sh logs      # 查看日志
+./start.sh status    # 检查状态
+./start.sh stop      # 停止服务
+./start.sh restart   # 重启服务
+```
+
+**📖 详细的Docker部署教程、故障排查和高级配置：**
+- **中文**: 查看 [DOCKER_DEPLOY.md](DOCKER_DEPLOY.md)
+- **English**: See [DOCKER_DEPLOY.en.md](DOCKER_DEPLOY.en.md)
+
+---
+
+### 📦 方式B：手动安装（开发者）
+
+**注意**：如果你使用了上面的Docker部署，请跳过本节。手动安装仅在你需要修改代码或不想使用Docker时需要。
 
 ### 1. 环境要求
 
@@ -169,9 +328,226 @@ npm install
 cd ..
 ```
 
-### 4. 配置系统
+### 4. 获取AI API密钥
 
-创建 `config.json` 文件：
+在配置系统之前，您需要获取AI API密钥。请选择以下AI提供商之一：
+
+#### 选项1：DeepSeek（推荐新手）
+
+**为什么选择DeepSeek？**
+- 💰 比GPT-4便宜（约1/10成本）
+- 🚀 响应速度快
+- 🎯 交易决策质量优秀
+- 🌍 全球可用无需VPN
+
+**如何获取DeepSeek API密钥：**
+
+1. **访问**：[https://platform.deepseek.com](https://platform.deepseek.com)
+2. **注册**：使用邮箱/手机号注册
+3. **验证**：完成邮箱/手机验证
+4. **充值**：向账户添加余额
+   - 最低：约$5美元
+   - 推荐：$20-50美元用于测试
+5. **创建API密钥**：
+   - 进入API Keys部分
+   - 点击"创建新密钥"
+   - 复制并保存密钥（以`sk-`开头）
+   - ⚠️ **重要**：立即保存 - 之后无法再查看！
+
+**价格**：每百万tokens约$0.14（非常便宜！）
+
+#### 选项2：Qwen（阿里云通义千问）
+
+**如何获取Qwen API密钥：**
+
+1. **访问**：[https://dashscope.aliyuncs.com](https://dashscope.aliyuncs.com)
+2. **注册**：使用阿里云账户注册
+3. **开通服务**：激活DashScope服务
+4. **创建API密钥**：
+   - 进入API密钥管理
+   - 创建新密钥
+   - 复制并保存（以`sk-`开头）
+
+**注意**：可能需要中国手机号注册
+
+---
+
+### 5. 系统配置
+
+**两种配置模式可选：**
+- **🌟 新手模式**：单trader + 默认币种（推荐！）
+- **⚔️ 专家模式**：多trader竞赛
+
+#### 🌟 新手模式配置（推荐）
+
+**步骤1**：复制并重命名示例配置文件
+
+```bash
+cp config.json.example config.json
+```
+
+**步骤2**：编辑`config.json`填入您的API密钥
+
+```json
+{
+  "traders": [
+    {
+      "id": "my_trader",
+      "name": "我的AI交易员",
+      "ai_model": "deepseek",
+      "binance_api_key": "YOUR_BINANCE_API_KEY",
+      "binance_secret_key": "YOUR_BINANCE_SECRET_KEY",
+      "use_qwen": false,
+      "deepseek_key": "sk-xxxxxxxxxxxxx",
+      "qwen_key": "",
+      "initial_balance": 1000.0,
+      "scan_interval_minutes": 3
+    }
+  ],
+  "leverage": {
+    "btc_eth_leverage": 5,
+    "altcoin_leverage": 5
+  },
+  "use_default_coins": true,
+  "coin_pool_api_url": "",
+  "oi_top_api_url": "",
+  "api_server_port": 8080
+}
+```
+
+**步骤3**：用您的实际密钥替换占位符
+
+| 占位符 | 替换为 | 哪里获取 |
+|-------|--------|---------|
+| `YOUR_BINANCE_API_KEY` | 您的币安API密钥 | 币安 → 账户 → API管理 |
+| `YOUR_BINANCE_SECRET_KEY` | 您的币安Secret密钥 | 同上 |
+| `sk-xxxxxxxxxxxxx` | 您的DeepSeek API密钥 | [platform.deepseek.com](https://platform.deepseek.com) |
+
+**步骤4**：调整初始余额（可选）
+
+- `initial_balance`：设置为您实际的币安合约账户余额
+- 用于计算盈亏百分比
+- 例如：如果您有500 USDT，设置`"initial_balance": 500.0`
+
+**✅ 配置检查清单：**
+
+- [ ] 币安API密钥已填写（无引号问题）
+- [ ] 币安Secret密钥已填写（无引号问题）
+- [ ] DeepSeek API密钥已填写（以`sk-`开头）
+- [ ] `use_default_coins`设为`true`（新手）
+- [ ] `initial_balance`与您的账户余额匹配
+- [ ] 文件保存为`config.json`（不是`.example`）
+
+---
+
+#### 🔷 备选：使用Hyperliquid交易所
+
+**NOFX也支持Hyperliquid** - 去中心化永续期货交易所。使用Hyperliquid而非Binance：
+
+**步骤1**：获取以太坊私钥（用于Hyperliquid身份验证）
+
+1. 打开**MetaMask**（或任何以太坊钱包）
+2. 导出你的私钥
+3. **去掉`0x`前缀**
+4. 在[Hyperliquid](https://hyperliquid.xyz)上为钱包充值
+
+**步骤2**：为Hyperliquid配置`config.json`
+
+```json
+{
+  "traders": [
+    {
+      "id": "hyperliquid_trader",
+      "name": "My Hyperliquid Trader",
+      "ai_model": "deepseek",
+      "exchange": "hyperliquid",
+      "hyperliquid_private_key": "your_private_key_without_0x",
+      "hyperliquid_testnet": false,
+      "deepseek_key": "sk-xxxxxxxxxxxxx",
+      "initial_balance": 1000.0,
+      "scan_interval_minutes": 3
+    }
+  ],
+  "use_default_coins": true,
+  "api_server_port": 8080
+}
+```
+
+**与Binance配置的关键区别：**
+- 用`hyperliquid_private_key`替换`binance_api_key` + `binance_secret_key`
+- 添加`"exchange": "hyperliquid"`字段
+- 设置`hyperliquid_testnet: false`用于主网（或`true`用于测试网）
+
+**⚠️ 安全警告**：切勿分享你的私钥！使用专门的钱包进行交易，而非主钱包。
+
+---
+
+#### 🔶 备选：使用Aster DEX交易所
+
+**NOFX也支持Aster DEX** - 兼容Binance的去中心化永续期货交易所！
+
+**为什么选择Aster？**
+- 🎯 兼容Binance API（轻松迁移）
+- 🔐 API钱包安全系统
+- 💰 更低的交易手续费
+- 🌐 多链支持（ETH、BSC、Polygon）
+- 🌍 无需KYC
+
+**步骤1**：创建Aster API钱包
+
+1. 访问[Aster API钱包](https://www.asterdex.com/en/api-wallet)
+2. 连接你的主钱包（MetaMask、WalletConnect等）
+3. 点击"创建API钱包"
+4. **立即保存这3项：**
+   - 主钱包地址（User）
+   - API钱包地址（Signer）
+   - API钱包私钥（⚠️ 仅显示一次！）
+
+**步骤2**：为Aster配置`config.json`
+
+```json
+{
+  "traders": [
+    {
+      "id": "aster_deepseek",
+      "name": "Aster DeepSeek Trader",
+      "ai_model": "deepseek",
+      "exchange": "aster",
+      
+      "aster_user": "0x63DD5aCC6b1aa0f563956C0e534DD30B6dcF7C4e",
+      "aster_signer": "0x21cF8Ae13Bb72632562c6Fff438652Ba1a151bb0",
+      "aster_private_key": "4fd0a42218f3eae43a6ce26d22544e986139a01e5b34a62db53757ffca81bae1",
+      
+      "deepseek_key": "sk-xxxxxxxxxxxxx",
+      "initial_balance": 1000.0,
+      "scan_interval_minutes": 3
+    }
+  ],
+  "use_default_coins": true,
+  "api_server_port": 8080,
+  "leverage": {
+    "btc_eth_leverage": 5,
+    "altcoin_leverage": 5
+  }
+}
+```
+
+**关键配置字段：**
+- `"exchange": "aster"` - 设置交易所为Aster
+- `aster_user` - 你的主钱包地址
+- `aster_signer` - API钱包地址（来自步骤1）
+- `aster_private_key` - API钱包私钥（去掉`0x`前缀）
+
+**⚠️ 安全提示**：
+- API钱包与主钱包分离（额外的安全层）
+- 切勿分享API私钥
+- 你可以随时在[asterdex.com](https://www.asterdex.com/en/api-wallet)撤销API钱包访问
+
+---
+
+#### ⚔️ 专家模式：多Trader竞赛
+
+用于运行多个AI trader相互竞争：
 
 ```json
 {
@@ -180,12 +556,13 @@ cd ..
       "id": "qwen_trader",
       "name": "Qwen AI Trader",
       "ai_model": "qwen",
-      "binance_api_key": "YOUR_BINANCE_API_KEY",
-      "binance_secret_key": "YOUR_BINANCE_SECRET_KEY",
+      "binance_api_key": "YOUR_BINANCE_API_KEY_1",
+      "binance_secret_key": "YOUR_BINANCE_SECRET_KEY_1",
       "use_qwen": true,
       "qwen_key": "sk-xxxxx",
-      "scan_interval_minutes": 3,
-      "initial_balance": 1000.0
+      "deepseek_key": "",
+      "initial_balance": 1000.0,
+      "scan_interval_minutes": 3
     },
     {
       "id": "deepseek_trader",
@@ -194,54 +571,277 @@ cd ..
       "binance_api_key": "YOUR_BINANCE_API_KEY_2",
       "binance_secret_key": "YOUR_BINANCE_SECRET_KEY_2",
       "use_qwen": false,
+      "qwen_key": "",
       "deepseek_key": "sk-xxxxx",
-      "scan_interval_minutes": 3,
-      "initial_balance": 1000.0
+      "initial_balance": 1000.0,
+      "scan_interval_minutes": 3
     }
   ],
-  "coin_pool_api_url": "http://x.x.x.x:xxx/api/ai500/list?auth=YOUR_AUTH",
-  "oi_top_api_url": "http://x.x.x.x:xxx/api/oi/top?auth=YOUR_AUTH",
+  "use_default_coins": true,
+  "coin_pool_api_url": "",
+  "oi_top_api_url": "",
   "api_server_port": 8080
 }
 ```
 
-**配置说明：**
-- `traders`: 可配置1-N个trader（单AI或多AI竞赛）
-- `id`: Trader唯一标识（用于日志目录）
-- `ai_model`: "qwen" 或 "deepseek"
-- `binance_api_key/secret_key`: 每个trader使用独立的币安账户
-- `initial_balance`: 初始余额（用于计算盈亏%）
-- `scan_interval_minutes`: 决策周期（建议3-5分钟）
-- `coin_pool_api_url`: AI500币种池API（可选）
-- `oi_top_api_url`: OI Top持仓量API（可选）
+**竞赛模式要求：**
+- 2个独立的币安合约账户（不同的API密钥）
+- 两种AI API密钥（Qwen + DeepSeek）
+- 更多测试资金（推荐：每个账户500+ USDT）
 
-### 5. 运行系统
+---
 
-**启动后端（AI交易系统 + API服务器）:**
+#### 📚 配置字段详解
+
+| 字段 | 说明 | 示例值 | 是否必填？ |
+|-----|------|--------|-----------|
+| `id` | 此trader的唯一标识符 | `"my_trader"` | ✅ 是 |
+| `name` | 显示名称 | `"我的AI交易员"` | ✅ 是 |
+| `ai_model` | 使用的AI提供商 | `"deepseek"` 或 `"qwen"` | ✅ 是 |
+| `binance_api_key` | 币安API密钥 | `"abc123..."` | ✅ 是 |
+| `binance_secret_key` | 币安Secret密钥 | `"xyz789..."` | ✅ 是 |
+| `use_qwen` | 是否使用Qwen | `true` 或 `false` | ✅ 是 |
+| `deepseek_key` | DeepSeek API密钥 | `"sk-xxx"` | 使用DeepSeek时必填 |
+| `qwen_key` | Qwen API密钥 | `"sk-xxx"` | 使用Qwen时必填 |
+| `initial_balance` | 用于P/L计算的起始余额 | `1000.0` | ✅ 是 |
+| `scan_interval_minutes` | 决策频率（分钟） | `3`（建议3-5） | ✅ 是 |
+| **`leverage`** | **杠杆配置 (v2.0.3+)** | 见下文 | ✅ 是 |
+| `btc_eth_leverage` | BTC/ETH最大杠杆<br>⚠️ 子账户：≤5倍 | `5`（默认，安全）<br>`50`（主账户最大） | ✅ 是 |
+| `altcoin_leverage` | 山寨币最大杠杆<br>⚠️ 子账户：≤5倍 | `5`（默认，安全）<br>`20`（主账户最大） | ✅ 是 |
+| `use_default_coins` | 使用内置币种列表<br>**✨ 智能默认：`true`** (v2.0.2+)<br>未提供API时自动启用 | `true` 或省略 | ❌ 否<br>(可选，自动默认) |
+| `coin_pool_api_url` | 自定义币种池API<br>*仅当`use_default_coins: false`时需要* | `""`（空） | ❌ 否 |
+| `oi_top_api_url` | 持仓量API<br>*可选补充数据* | `""`（空） | ❌ 否 |
+| `api_server_port` | Web仪表板端口 | `8080` | ✅ 是 |
+
+**默认交易币种**（当 `use_default_coins: true` 时）：
+- BTC、ETH、SOL、BNB、XRP、DOGE、ADA、HYPE
+
+---
+
+#### ⚙️ 杠杆配置 (v2.0.3+)
+
+**什么是杠杆配置？**
+
+杠杆设置控制AI每次交易可以使用的最大杠杆。这对于风险管理至关重要，特别是对于有杠杆限制的币安子账户。
+
+**配置格式：**
+
+```json
+"leverage": {
+  "btc_eth_leverage": 5,    // BTC和ETH的最大杠杆
+  "altcoin_leverage": 5      // 所有其他币种的最大杠杆
+}
+```
+
+**⚠️ 重要：币安子账户限制**
+
+- **子账户**：币安限制为**≤5倍杠杆**
+- **主账户**：可使用最高20倍（山寨币）或50倍（BTC/ETH）
+- 如果您使用子账户并设置杠杆>5倍，交易将**失败**，错误信息：`Subaccounts are restricted from using leverage greater than 5x`
+
+**推荐设置：**
+
+| 账户类型 | BTC/ETH杠杆 | 山寨币杠杆 | 风险级别 |
+|---------|------------|-----------|---------|
+| **子账户** | `5` | `5` | ✅ 安全（默认） |
+| **主账户（保守）** | `10` | `10` | 🟡 中等 |
+| **主账户（激进）** | `20` | `15` | 🔴 高 |
+| **主账户（最大）** | `50` | `20` | 🔴🔴 非常高 |
+
+**示例：**
+
+**安全配置（子账户或保守）：**
+```json
+"leverage": {
+  "btc_eth_leverage": 5,
+  "altcoin_leverage": 5
+}
+```
+
+**激进配置（仅主账户）：**
+```json
+"leverage": {
+  "btc_eth_leverage": 20,
+  "altcoin_leverage": 15
+}
+```
+
+**AI如何使用杠杆：**
+
+- AI可以选择**从1倍到您配置的最大值之间的任何杠杆**
+- 例如，当`altcoin_leverage: 20`时，AI可能根据市场情况决定使用5倍、10倍或20倍
+- 配置设置的是**上限**，而不是固定值
+- AI在选择杠杆时会考虑波动性、风险回报比和账户余额
+
+---
+
+#### ⚠️ 重要：`use_default_coins` 字段
+
+**智能默认行为（v2.0.2+）：**
+
+系统现在会自动默认为`use_default_coins: true`，如果：
+- 您在config.json中未包含此字段，或
+- 您将其设为`false`但未提供`coin_pool_api_url`
+
+这让新手更友好！您甚至可以完全省略此字段。
+
+**配置示例：**
+
+✅ **选项1：显式设置（推荐以保持清晰）**
+```json
+"use_default_coins": true,
+"coin_pool_api_url": "",
+"oi_top_api_url": ""
+```
+
+✅ **选项2：省略字段（自动使用默认币种）**
+```json
+// 完全不包含"use_default_coins"
+"coin_pool_api_url": "",
+"oi_top_api_url": ""
+```
+
+⚙️ **高级：使用外部API**
+```json
+"use_default_coins": false,
+"coin_pool_api_url": "http://your-api.com/coins",
+"oi_top_api_url": "http://your-api.com/oi"
+```
+
+---
+
+### 6. 运行系统
+
+#### 🚀 启动系统（2个步骤）
+
+系统有**2个部分**需要分别运行：
+1. **后端**（AI交易大脑 + API）
+2. **前端**（Web监控仪表板）
+
+---
+
+#### **步骤1：启动后端**
+
+打开终端并运行：
 
 ```bash
+# 构建程序（首次运行或代码更改后）
 go build -o nofx
+
+# 启动后端
 ./nofx
 ```
 
-**启动前端（Web Dashboard）:**
+**您应该看到：**
 
-新开终端窗口：
+```
+🚀 启动自动交易系统...
+✓ Trader [my_trader] 已初始化
+✓ API服务器启动在端口 8080
+📊 开始交易监控...
+```
+
+**⚠️ 如果看到错误：**
+
+| 错误信息 | 解决方案 |
+|---------|---------|
+| `invalid API key` | 检查config.json中的币安API密钥 |
+| `TA-Lib not found` | 运行`brew install ta-lib`（macOS） |
+| `port 8080 already in use` | 修改config.json中的`api_server_port` |
+| `DeepSeek API error` | 验证DeepSeek API密钥和余额 |
+
+**✅ 后端运行正常的标志：**
+- 无错误信息
+- 出现"开始交易监控..."
+- 系统显示账户余额
+- 保持此终端窗口打开！
+
+---
+
+#### **步骤2：启动前端**
+
+打开**新的终端窗口**（保持第一个运行！），然后：
 
 ```bash
 cd web
 npm run dev
 ```
 
-**访问界面:**
+**您应该看到：**
+
 ```
-Web Dashboard: http://localhost:3000
-API Server: http://localhost:8080
+VITE v5.x.x  ready in xxx ms
+
+➜  Local:   http://localhost:3000/
+➜  Network: use --host to expose
 ```
 
-### 6. 停止系统
+**✅ 前端运行正常的标志：**
+- "Local: http://localhost:3000/"消息
+- 无错误信息
+- 也保持此终端窗口打开！
 
-在两个终端中分别按 `Ctrl+C`
+---
+
+#### **步骤3：访问仪表板**
+
+在Web浏览器中访问：
+
+**🌐 http://localhost:3000**
+
+**您将看到：**
+- 📊 实时账户余额
+- 📈 持仓（如果有）
+- 🤖 AI决策日志
+- 📉 净值曲线图
+
+**首次使用提示：**
+- 首次AI决策可能需要3-5分钟
+- 初始决策可能显示"观望"- 这是正常的
+- AI需要先分析市场状况
+
+---
+
+### 7. 监控系统
+
+**需要关注的内容：**
+
+✅ **健康系统标志：**
+- 后端终端每3-5分钟显示决策周期
+- 无持续错误信息
+- 账户余额更新
+- Web仪表板自动刷新
+
+⚠️ **警告标志：**
+- 重复的API错误
+- 10分钟以上无决策
+- 余额快速下降
+
+**检查系统状态：**
+
+```bash
+# 在新终端窗口中
+curl http://localhost:8080/health
+```
+
+应返回：`{"status":"ok"}`
+
+---
+
+### 8. 停止系统
+
+**优雅关闭（推荐）：**
+
+1. 转到**后端终端**（第一个）
+2. 按`Ctrl+C`
+3. 等待"系统已停止"消息
+4. 转到**前端终端**（第二个）
+5. 按`Ctrl+C`
+
+**⚠️ 重要：**
+- 始终先停止后端
+- 关闭终端前等待确认
+- 不要强制退出（不要直接关闭终端）
 
 ---
 
@@ -250,65 +850,100 @@ API Server: http://localhost:8080
 每个决策周期（默认3分钟），系统按以下流程运行：
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ 1. 分析历史表现（最近20个周期）                        │
-├─────────────────────────────────────────────────────┤
-│  ✓ 计算整体胜率、平均盈利、盈亏比                      │
-│  ✓ 统计各币种表现（胜率、平均盈亏）                    │
-│  ✓ 识别最佳/最差币种                                  │
-│  ✓ 列出最近5笔交易详情                                │
-└─────────────────────────────────────────────────────┘
-                       ↓
-┌─────────────────────────────────────────────────────┐
-│ 2. 获取账户状态                                       │
-├─────────────────────────────────────────────────────┤
-│  • 账户净值、可用余额                                 │
-│  • 持仓数量、总盈亏                                   │
-│  • 保证金使用率                                       │
-└─────────────────────────────────────────────────────┘
-                       ↓
-┌─────────────────────────────────────────────────────┐
-│ 3. 分析现有持仓（如果有）                             │
-├─────────────────────────────────────────────────────┤
-│  • 获取每个持仓的市场数据                             │
-│  • 计算技术指标（RSI、MACD、EMA）                    │
-│  • AI判断是否需要平仓                                 │
-└─────────────────────────────────────────────────────┘
-                       ↓
-┌─────────────────────────────────────────────────────┐
-│ 4. 评估新机会（候选币种池）                           │
-├─────────────────────────────────────────────────────┤
-│  • 获取AI500高评分币种（前20个）                      │
-│  • 获取OI Top持仓增长币种（前20个）                    │
-│  • 合并去重，过滤低流动性币种（<15M）                 │
-│  • 批量获取市场数据和技术指标                          │
-└─────────────────────────────────────────────────────┘
-                       ↓
-┌─────────────────────────────────────────────────────┐
-│ 5. AI综合决策                                        │
-├─────────────────────────────────────────────────────┤
-│  • 查看历史反馈（胜率、最佳/最差币种）                 │
-│  • Chain of Thought 思维链分析                       │
-│  • 输出决策：平仓/开仓/持有/观望                      │
-│  • 包含杠杆、仓位、止损、止盈                          │
-└─────────────────────────────────────────────────────┘
-                       ↓
-┌─────────────────────────────────────────────────────┐
-│ 6. 执行交易                                          │
-├─────────────────────────────────────────────────────┤
-│  • 优先级排序：先平仓，再开仓                          │
-│  • 精度自动适配（LOT_SIZE）                           │
-│  • 防止仓位叠加（同币种同方向拒绝开仓）                │
-│  • 平仓后自动取消所有挂单                             │
-└─────────────────────────────────────────────────────┘
-                       ↓
-┌─────────────────────────────────────────────────────┐
-│ 7. 记录日志                                          │
-├─────────────────────────────────────────────────────┤
-│  • 保存完整决策记录到 decision_logs/                 │
-│  • 包含思维链、决策JSON、账户快照、执行结果            │
-└─────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│ 1. 📊 分析历史表现（最近20个周期）                        │
+├──────────────────────────────────────────────────────────┤
+│  ✓ 计算整体胜率、平均盈利、盈亏比                         │
+│  ✓ 统计各币种表现（胜率、平均USDT盈亏）                  │
+│  ✓ 识别最佳/最差币种                                     │
+│  ✓ 列出最近5笔交易详情（含准确盈亏金额）                  │
+│  ✓ 计算夏普比率衡量风险调整后收益                         │
+│  📌 新增 (v2.0.2): 考虑杠杆的准确USDT盈亏计算            │
+└──────────────────────────────────────────────────────────┘
+                            ↓
+┌──────────────────────────────────────────────────────────┐
+│ 2. 💰 获取账户状态                                       │
+├──────────────────────────────────────────────────────────┤
+│  • 账户净值、可用余额、未实现盈亏                         │
+│  • 持仓数量、总盈亏（已实现+未实现）                      │
+│  • 保证金使用率（current/maximum）                       │
+│  • 风险评估指标                                          │
+└──────────────────────────────────────────────────────────┘
+                            ↓
+┌──────────────────────────────────────────────────────────┐
+│ 3. 🔍 分析现有持仓（如果有）                              │
+├──────────────────────────────────────────────────────────┤
+│  • 获取每个持仓的市场数据（3分钟+4小时K线）               │
+│  • 计算技术指标（RSI、MACD、EMA）                        │
+│  • 显示持仓时长（例如"持仓时长2小时15分钟"）               │
+│  • AI判断是否需要平仓（止盈、止损或调整）                 │
+│  📌 新增 (v2.0.2): 追踪持仓时长帮助AI决策                │
+└──────────────────────────────────────────────────────────┘
+                            ↓
+┌──────────────────────────────────────────────────────────┐
+│ 4. 🎯 评估新机会（候选币种池）                            │
+├──────────────────────────────────────────────────────────┤
+│  • 获取AI500高评分币种（前20个）                          │
+│  • 获取OI Top持仓增长币种（前20个）                       │
+│  • 合并去重，过滤低流动性币种（持仓量<15M USD）           │
+│  • 批量获取市场数据和技术指标                             │
+│  • 为每个候选币种准备完整的原始数据序列                    │
+└──────────────────────────────────────────────────────────┘
+                            ↓
+┌──────────────────────────────────────────────────────────┐
+│ 5. 🧠 AI综合决策                                         │
+├──────────────────────────────────────────────────────────┤
+│  • 查看历史反馈（胜率、盈亏比、最佳/最差币种）            │
+│  • 接收所有原始序列数据（K线、指标、持仓量）              │
+│  • Chain of Thought 思维链分析                           │
+│  • 输出决策：平仓/开仓/持有/观望                          │
+│  • 包含杠杆、仓位、止损、止盈参数                         │
+│  📌 新增 (v2.0.2): AI可自由分析原始序列，不受预定义指标限制 │
+└──────────────────────────────────────────────────────────┘
+                            ↓
+┌──────────────────────────────────────────────────────────┐
+│ 6. ⚡ 执行交易                                           │
+├──────────────────────────────────────────────────────────┤
+│  • 优先级排序：先平仓，再开仓                             │
+│  • 精度自动适配（LOT_SIZE规则）                          │
+│  • 防止仓位叠加（同币种同方向拒绝开仓）                   │
+│  • 平仓后自动取消所有挂单                                │
+│  • 记录开仓时间用于持仓时长追踪                           │
+│  📌 新增 (v2.0.2): 追踪持仓开仓时间                      │
+└──────────────────────────────────────────────────────────┘
+                            ↓
+┌──────────────────────────────────────────────────────────┐
+│ 7. 📝 记录日志                                           │
+├──────────────────────────────────────────────────────────┤
+│  • 保存完整决策记录到 decision_logs/                     │
+│  • 包含思维链、决策JSON、账户快照、执行结果               │
+│  • 存储完整持仓数据（数量、杠杆、开/平仓时间）            │
+│  • 使用symbol_side键值防止多空冲突                       │
+│  📌 新增 (v2.0.2): 防止多空持仓冲突，考虑数量+杠杆       │
+└──────────────────────────────────────────────────────────┘
 ```
+
+### v2.0.2的核心改进
+
+**📌 持仓时长追踪：**
+- 系统现在追踪每个持仓已持有多长时间
+- 在用户提示中显示："持仓时长2小时15分钟"
+- 帮助AI更好地判断何时退出仓位
+
+**📌 准确的盈亏计算：**
+- 之前：只显示百分比（100U@5% = 1000U@5% = 都显示"5.0"）
+- 现在：真实USDT盈亏 = 仓位价值 × 价格变化% × 杠杆倍数
+- 示例：1000 USDT × 5% × 20倍 = 1000 USDT实际盈利
+
+**📌 增强的AI自由度：**
+- AI可以自由分析所有原始序列数据
+- 不再局限于预定义的指标组合
+- 可以执行自己的趋势分析、支撑位/阻力位计算
+
+**📌 改进的持仓追踪：**
+- 使用`symbol_side`键值（例如"BTCUSDT_long"）
+- 防止同时持有多空仓时的冲突
+- 存储完整数据：数量、杠杆、开/平仓时间
 
 ---
 
@@ -565,6 +1200,50 @@ sudo apt-get install libta-lib0-dev
 
 ## 🔄 更新日志
 
+### v2.0.2 (2025-10-29)
+
+**关键Bug修复 - 交易历史记录与性能分析：**
+
+本版本修复了历史交易记录和性能分析系统中的**严重计算错误**，这些错误严重影响了盈利统计的准确性。
+
+**1. 盈亏计算 - 重大错误修复** (logger/decision_logger.go)
+- **问题**：之前只用百分比计算盈亏，完全忽略了仓位大小和杠杆倍数
+  - 示例：100 USDT仓位赚5%和1000 USDT仓位赚5%都显示`5.0`作为盈利
+  - 这导致性能分析完全不准确
+- **解决方案**：现在计算实际USDT盈亏金额
+  ```
+  盈亏(USDT) = 仓位价值 × 价格变化% × 杠杆倍数
+  示例: 1000 USDT × 5% × 20倍 = 1000 USDT实际盈利
+  ```
+- **影响**：胜率、盈亏比和夏普比率现在基于准确的USDT金额计算
+
+**2. 持仓追踪 - 缺失关键数据**
+- **问题**：开仓记录只存储了价格和时间，缺少数量和杠杆
+- **解决方案**：现在存储完整交易数据：
+  - `quantity`: 持仓数量（币数）
+  - `leverage`: 杠杆倍数（如20倍）
+  - 这些是准确计算盈亏的必要数据
+
+**3. 持仓键值逻辑 - 多空冲突**
+- **问题**：使用`symbol`作为持仓键值，导致同时持有多空仓时数据冲突
+  - 示例：BTCUSDT多头和BTCUSDT空头会互相覆盖
+- **解决方案**：改为`symbol_side`格式（如`BTCUSDT_long`、`BTCUSDT_short`）
+  - 现在可以正确区分多空持仓
+
+**4. 夏普比率计算 - 代码优化**
+- **问题**：使用自定义的牛顿迭代法计算平方根
+- **解决方案**：替换为标准库`math.Sqrt`
+  - 更可靠、易维护且高效
+
+**为什么这次更新很重要：**
+- ✅ 历史交易统计现在显示**真实的USDT盈亏**而不是无意义的百分比
+- ✅ 不同杠杆倍数的交易对比现在准确了
+- ✅ AI自我学习机制接收到正确的历史反馈
+- ✅ 盈亏比和夏普比率计算现在有意义了
+- ✅ 多持仓追踪（同时持有多空）现在正常工作
+
+**建议**：如果您在此更新前运行过系统，您的历史统计数据是不准确的。更新到v2.0.2后，新的交易将被正确计算。
+
 ### v2.0.1 (2025-10-29)
 
 **Bug修复:**
@@ -632,6 +1311,12 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 
 ---
 
-**最后更新**: 2025-10-29
+**最后更新**: 2025-10-29 (v2.0.2)
 
 **⚡ 用AI的力量，探索量化交易的可能性！**
+
+---
+
+## ⭐ Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=tinkle-community/nofx&type=Date)](https://star-history.com/#tinkle-community/nofx&Date)
